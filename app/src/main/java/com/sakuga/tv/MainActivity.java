@@ -32,8 +32,10 @@ public class MainActivity extends Activity {
         FrameLayout root = new FrameLayout(this);
         root.setBackgroundColor(Color.BLACK);
 
-        // 1. Нижний слой: нативный аппаратный видеоплеер
+        // 1. Нижний слой: видеоплеер БЕЗ перехвата фокуса пульта
         videoView = new VideoView(this);
+        videoView.setFocusable(false);
+        videoView.setFocusableInTouchMode(false);
         FrameLayout.LayoutParams vp = new FrameLayout.LayoutParams(
             FrameLayout.LayoutParams.MATCH_PARENT,
             FrameLayout.LayoutParams.MATCH_PARENT,
@@ -59,9 +61,11 @@ public class MainActivity extends Activity {
             }
         });
 
-        // 2. Верхний слой: прозрачный интерфейс лаунчера
+        // 2. Верхний слой: интерфейс с принудительным фокусом
         webView = new WebView(this);
         webView.setBackgroundColor(Color.TRANSPARENT);
+        webView.setFocusable(true);
+        webView.setFocusableInTouchMode(true);
         WebSettings s = webView.getSettings();
         s.setJavaScriptEnabled(true);
         s.setAllowFileAccess(true);
@@ -70,6 +74,7 @@ public class MainActivity extends Activity {
         root.addView(webView);
 
         setContentView(root);
+        webView.requestFocus();
     }
 
     @Override
@@ -78,11 +83,13 @@ public class MainActivity extends Activity {
         if (videoView != null && !videoView.isPlaying()) {
             videoView.start();
         }
+        if (webView != null) {
+            webView.requestFocus();
+        }
     }
 
     @Override
     public boolean dispatchKeyEvent(KeyEvent event) {
-        // Перехватываем кнопку «Назад» на пульте ТВ
         if (event.getKeyCode() == KeyEvent.KEYCODE_BACK &&
             event.getAction() == KeyEvent.ACTION_DOWN) {
             webView.evaluateJavascript("onHardwareBack();", null);
