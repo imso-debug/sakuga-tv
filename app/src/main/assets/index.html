@@ -5,32 +5,24 @@
 <title>Sakuga TV</title>
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
-  body {
-    background: #07080c; color: #fff;
+  html, body {
+    background: transparent; color: #fff;
     font-family: sans-serif; overflow: hidden;
     height: 100vh; width: 100vw; user-select: none;
   }
-  #bg-vid {
-    position: fixed; top: 0; left: 0;
-    width: 100%; height: 100%;
-    object-fit: cover; z-index: -2;
-    will-change: opacity;
-    transition: opacity 0.6s linear;
-  }
-  #bg-vid.fade { opacity: 0.1; }
   .vig {
     position: fixed; inset: 0; z-index: -1;
     background: linear-gradient(180deg,
-      rgba(7,8,12,.45) 0%, rgba(7,8,12,.2) 45%,
-      rgba(7,8,12,.92) 100%);
+      rgba(7,8,12,.45) 0%, rgba(7,8,12,.15) 45%,
+      rgba(7,8,12,.90) 100%);
     transition: opacity 0.8s linear;
   }
   #ui { height: 100vh; transition: opacity 0.8s; }
   body.afk #ui { opacity: 0; pointer-events: none; }
-  body.afk .vig { opacity: 0.15; }
+  body.afk .vig { opacity: 0.1; }
   #afk-clk {
     position: fixed; bottom: 40px; right: 55px;
-    font-size: 36px; color: rgba(255,255,255,.5);
+    font-size: 36px; color: rgba(255,255,255,.55);
     opacity: 0; transition: opacity 0.8s;
   }
   body.afk #afk-clk { opacity: 1; }
@@ -39,7 +31,7 @@
     align-items: center; padding: 40px 60px;
   }
   .badge {
-    background: rgba(18,20,30,.8);
+    background: rgba(18,20,30,.82);
     padding: 8px 18px; border-radius: 20px;
     font-size: 15px; letter-spacing: 1.5px;
     border: 1px solid rgba(255,255,255,.18);
@@ -54,7 +46,6 @@
     border: 2px solid rgba(255,255,255,.18);
     display: flex; justify-content: center;
     align-items: center; font-size: 22px;
-    will-change: transform;
     transition: transform 0.18s ease, border-color 0.18s;
   }
   .t-btn.foc {
@@ -74,11 +65,11 @@
   .card {
     width: 260px; height: 145px;
     border-radius: 20px; padding: 16px;
-    background: rgba(18,20,30,.82);
+    background: rgba(18,20,30,.84);
     border: 2px solid rgba(255,255,255,.15);
     display: flex; flex-direction: column;
     justify-content: center; align-items: center;
-    gap: 10px; will-change: transform;
+    gap: 10px;
     transition: transform 0.18s ease, border-color 0.18s;
   }
   .card.lg {
@@ -133,7 +124,6 @@
 </head>
 <body>
 
-<video id="bg-vid" autoplay muted playsinline></video>
 <div class="vig"></div>
 <div id="afk-clk">00:00</div>
 
@@ -184,39 +174,38 @@
   <div class="m-grid" id="m-grid"></div>
 </div>
 <script>
-  const DIR = 'file:///sdcard/SakugaTV/';
   const normList = [
     'sakuga1.mp4', 'sakuga2.mp4', 'sakuga3.mp4'
   ];
   const afkList = ['afk1.mp4', 'afk2.mp4'];
   const AFK_MS = 120000;
 
-  const vid = document.getElementById('bg-vid');
   let list = normList, vIdx = 0;
   let loopSingle = false, isAfk = false;
   let afkTimer = null, modalMode = null;
 
-  function playVid(name) {
-    vid.classList.add('fade');
-    setTimeout(() => {
-      vid.src = DIR + name;
-      vid.load();
-      vid.play().catch(() => {});
-      vid.classList.remove('fade');
-    }, 450);
-  }
-  vid.src = DIR + list[0];
-  vid.play().catch(() => {});
-
-  vid.addEventListener('ended', () => {
-    if (loopSingle && !isAfk) {
-      vid.currentTime = 0;
-      vid.play().catch(() => {});
-      return;
+  function playVid(name, loop) {
+    if (window.AndroidLauncher &&
+        window.AndroidLauncher.playVideo) {
+      window.AndroidLauncher.playVideo(name, !!loop);
     }
+  }
+
+  // Старт первого видео
+  playVid(list[0], false);
+
+  // Вызывается из Android, когда ролик закончился
+  function onVideoEnded() {
+    if (loopSingle && !isAfk) return;
     vIdx = (vIdx + 1) % list.length;
-    playVid(list[vIdx]);
-  });
+    playVid(list[vIdx], false);
+  }
+
+  // Вызывается при нажатии кнопки «Назад» на пульте
+  function onHardwareBack() {
+    if (isAfk) { resetAfk(); return; }
+    if (modalMode) { closeModal(); }
+  }
 
   function setAfk(st) {
     if (isAfk === st) return;
@@ -224,7 +213,7 @@
     document.body.classList.toggle('afk', st);
     list = st ? afkList : normList;
     vIdx = 0;
-    playVid(list[0]);
+    playVid(list[0], st ? false : loopSingle);
   }
 
   function resetAfk() {
@@ -276,11 +265,6 @@
         items = JSON.parse(
           window.AndroidLauncher.getApps()
         );
-      } else {
-        items = [
-          {name: 'ИВИ', val: 'ru.ivi.client'},
-          {name: 'Кинопоиск', val: 'ru.kinopoisk.tv'}
-        ];
       }
     } else if (mode === 'vids') {
       title.textContent = 'Выбор фонового видео';
@@ -351,10 +335,10 @@
         } else if (modalMode === 'vids') {
           if (val === 'auto') {
             loopSingle = false;
-            playVid(normList[vIdx]);
+            playVid(normList[vIdx], false);
           } else {
             loopSingle = true;
-            playVid(val);
+            playVid(val, true);
           }
           closeModal();
         }
@@ -392,8 +376,5 @@
     }
   });
 </script>
-</body>
-</html>
-
 </body>
 </html>
