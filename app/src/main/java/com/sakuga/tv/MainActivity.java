@@ -12,6 +12,7 @@ import android.provider.Settings;
 import android.view.Gravity;
 import android.view.KeyEvent;
 import android.view.ViewGroup;
+import android.view.WindowManager;
 import android.webkit.JavascriptInterface;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
@@ -30,6 +31,11 @@ public class MainActivity extends Activity {
     @Override
     protected void onCreate(Bundle b) {
         super.onCreate(b);
+        // Запрещаем ТВ включать стандартную заставку и сон
+        getWindow().addFlags(
+            WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON
+        );
+
         final FrameLayout root = new FrameLayout(this);
         root.setBackgroundColor(Color.BLACK);
 
@@ -48,7 +54,6 @@ public class MainActivity extends Activity {
             public void onPrepared(MediaPlayer mp) {
                 mp.setVolume(0f, 0f);
                 mp.setLooping(loopSingle);
-                // Подгоняем видео под экран ТВ без чёрных полос
                 mp.setVideoScalingMode(
                     MediaPlayer.VIDEO_SCALING_MODE_SCALE_TO_FIT_WITH_CROPPING
                 );
@@ -124,6 +129,9 @@ public class MainActivity extends Activity {
                     File f = new File("/sdcard/SakugaTV/" + fileName);
                     if (f.exists()) {
                         videoView.setVideoURI(Uri.fromFile(f));
+                    } else {
+                        // Если файла нет, сразу берём следующий
+                        webView.evaluateJavascript("onVideoEnded();", null);
                     }
                 }
             });
@@ -157,4 +165,6 @@ public class MainActivity extends Activity {
             return arr.toString();
         }
     }
+}
+
 }
