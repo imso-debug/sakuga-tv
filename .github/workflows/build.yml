@@ -12,6 +12,27 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '7.6.4'
+      - name: Generate Clean Manifest
+        run: |
+          python3 -c '
+          p = "android:name="
+          xml = f"""<?xml version="1.0" encoding="utf-8"?>
+          <manifest xmlns:android="http://android.com">
+              <uses-permission {p}"android.permission.READ_EXTERNAL_STORAGE"/>
+              <uses-permission {p}"android.permission.QUERY_ALL_PACKAGES"/>
+              <application android:label="Sakuga Launcher" android:hardwareAccelerated="true" android:theme="@android:style/Theme.NoTitleBar.Fullscreen">
+                  <activity {p}".MainActivity" android:exported="true" android:launchMode="singleTask" android:stateNotNeeded="true">
+                      <intent-filter>
+                          <action {p}"android.intent.action.MAIN"/>
+                          <category {p}"android.intent.category.HOME"/>
+                          <category {p}"android.intent.category.DEFAULT"/>
+                          <category {p}"android.intent.category.LEANBACK_LAUNCHER"/>
+                      </intent-filter>
+                  </activity>
+              </application>
+          </manifest>"""
+          open("app/src/main/AndroidManifest.xml", "w").write(xml)
+          '
       - name: Build Debug APK
         run: gradle assembleDebug
       - uses: actions/upload-artifact@v4
