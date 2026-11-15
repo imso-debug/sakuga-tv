@@ -21,6 +21,7 @@ import android.widget.VideoView;
 import org.json.JSONArray;
 import org.json.JSONObject;
 import java.io.File;
+import java.util.Arrays;
 import java.util.List;
 
 public class MainActivity extends Activity {
@@ -70,6 +71,11 @@ public class MainActivity extends Activity {
             }
         });
 
+        videoView.setOnErrorListener((mp, what, extra) -> {
+            webView.evaluateJavascript("onVideoEnded();", null);
+            return true;
+        });
+
         webView = new WebView(this);
         webView.setBackgroundColor(Color.TRANSPARENT);
         webView.setFocusable(true);
@@ -104,12 +110,33 @@ public class MainActivity extends Activity {
 
     public class Bridge {
         @JavascriptInterface
+        public String getVideos() {
+            JSONArray arr = new JSONArray();
+            File dir = new File("/sdcard/SakugaTV");
+            File[] files = dir.listFiles();
+            if (files != null) {
+                Arrays.sort(files);
+                for (File f : files) {
+                    String n = f.getName();
+                    if (f.isFile() && n.toLowerCase().endsWith(".mp4")) {
+                        arr.put(n);
+                    }
+                }
+            }
+            return arr.toString();
+        }
+
+        @JavascriptInterface
         public void playVideo(String name, boolean loop) {
             runOnUiThread(() -> {
                 loopSingle = loop;
                 File f = new File("/sdcard/SakugaTV/" + name);
-                if (f.exists()) videoView.setVideoURI(Uri.fromFile(f));
-                else webView.evaluateJavascript("onVideoEnded();", null);
+                if (f.exists()) {
+                    videoView.stopPlayback();
+                    videoView.setVideoURI(Uri.fromFile(f));
+                } else {
+                    webView.evaluateJavascript("onVideoEnded();", null);
+                }
             });
         }
 
@@ -141,4 +168,3 @@ public class MainActivity extends Activity {
         }
     }
 }
-
