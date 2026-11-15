@@ -11,6 +11,7 @@ import android.os.Bundle;
 import android.provider.Settings;
 import android.view.Gravity;
 import android.view.KeyEvent;
+import android.view.ViewGroup;
 import android.webkit.JavascriptInterface;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
@@ -29,10 +30,9 @@ public class MainActivity extends Activity {
     @Override
     protected void onCreate(Bundle b) {
         super.onCreate(b);
-        FrameLayout root = new FrameLayout(this);
+        final FrameLayout root = new FrameLayout(this);
         root.setBackgroundColor(Color.BLACK);
 
-        // 1. Нижний слой: видеоплеер БЕЗ перехвата фокуса пульта
         videoView = new VideoView(this);
         videoView.setFocusable(false);
         videoView.setFocusableInTouchMode(false);
@@ -48,6 +48,23 @@ public class MainActivity extends Activity {
             public void onPrepared(MediaPlayer mp) {
                 mp.setVolume(0f, 0f);
                 mp.setLooping(loopSingle);
+                // Подгоняем видео под экран ТВ без чёрных полос
+                mp.setVideoScalingMode(
+                    MediaPlayer.VIDEO_SCALING_MODE_SCALE_TO_FIT_WITH_CROPPING
+                );
+                int vw = mp.getVideoWidth();
+                int vh = mp.getVideoHeight();
+                int sw = root.getWidth();
+                int sh = root.getHeight();
+                if (vw > 0 && vh > 0 && sw > 0 && sh > 0) {
+                    float scale = Math.max(
+                        (float) sw / vw, (float) sh / vh
+                    );
+                    ViewGroup.LayoutParams lp = videoView.getLayoutParams();
+                    lp.width = Math.round(vw * scale);
+                    lp.height = Math.round(vh * scale);
+                    videoView.setLayoutParams(lp);
+                }
                 videoView.start();
             }
         });
@@ -61,7 +78,6 @@ public class MainActivity extends Activity {
             }
         });
 
-        // 2. Верхний слой: интерфейс с принудительным фокусом
         webView = new WebView(this);
         webView.setBackgroundColor(Color.TRANSPARENT);
         webView.setFocusable(true);
