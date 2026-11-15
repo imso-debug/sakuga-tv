@@ -12,30 +12,12 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: '7.6.4'
-      - name: Generate Clean Manifest
-        run: |
-          python3 -c '
-          p = "android:name="
-          xml = f"""<?xml version="1.0" encoding="utf-8"?>
-          <manifest xmlns:android="http://android.com">
-              <uses-permission {p}"android.permission.READ_EXTERNAL_STORAGE"/>
-              <uses-permission {p}"android.permission.QUERY_ALL_PACKAGES"/>
-              <application android:label="Sakuga Launcher" android:hardwareAccelerated="true" android:theme="@android:style/Theme.NoTitleBar.Fullscreen">
-                  <activity {p}".MainActivity" android:exported="true" android:launchMode="singleTask" android:stateNotNeeded="true">
-                      <intent-filter>
-                          <action {p}"android.intent.action.MAIN"/>
-                          <category {p}"android.intent.category.HOME"/>
-                          <category {p}"android.intent.category.DEFAULT"/>
-                          <category {p}"android.intent.category.LEANBACK_LAUNCHER"/>
-                      </intent-filter>
-                  </activity>
-              </application>
-          </manifest>"""
-          open("app/src/main/AndroidManifest.xml", "w").write(xml)
-          '
+      - name: Decode Manifest
+        run: echo "PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0idXRmLTgiPz4KPG1hbmlmZXN0IHhtbG5zOmFuZHJvaWQ9Imh0dHA6Ly9zY2hlbWFzLmFuZHJvaWQuY29tL2Fway9yZXMvYW5kcm9pZCI+CiAgICA8dXNlcy1wZXJtaXNzaW9uIGFuZHJvaWQ6bmFtZT0iYW5kcm9pZC5wZXJtaXNzaW9uLlJFQURfRVhURVJOQUxfU1RPUkFHRSIvPgogICAgPHVzZXMtcGVybWlzc2lvbiBhbmRyb2lkOm5hbWU9ImFuZHJvaWQucGVybWlzc2lvbi5RVUVSWV9BTExfUEFDS0FHRVMiLz4KICAgIDxhcHBsaWNhdGlvbiBhbmRyb2lkOmxhYmVsPSJTYWt1Z2EgTGF1bmNoZXIiIGFuZHJvaWQ6aGFyZHdhcmVBY2NlbGVyYXRlZD0idHJ1ZSIgYW5kcm9pZDp0aGVtZT0iQGFuZHJvaWQ6c3R5bGUvVGhlbWUuTm9UaXRsZUJhci5GdWxsc2NyZWVuIj4KICAgICAgICA8YWN0aXZpdHkgYW5kcm9pZDpuYW1lPSIuTWFpbkFjdGl2aXR5IiBhbmRyb2lkOmV4cG9ydGVkPSJ0cnVlIiBhbmRyb2lkOmxhdW5jaE1vZGU9InNpbmdsZVRhc2siIGFuZHJvaWQ6c3RhdGVOb3ROZWVkZWQ9InRydWUiPgogICAgICAgICAgICA8aW50ZW50LWZpbHRlcj4KICAgICAgICAgICAgICAgIDxhY3Rpb24gYW5kcm9pZDpuYW1lPSJhbmRyb2lkLmludGVudC5hY3Rpb24uTUFJTiIvPgogICAgICAgICAgICAgICAgPGNhdGVnb3J5IGFuZHJvaWQ6bmFtZT0iYW5kcm9pZC5pbnRlbnQuY2F0ZWdvcnkuSE9NRSIvPgogICAgICAgICAgICAgICAgPGNhdGVnb3J5IGFuZHJvaWQ6bmFtZT0iYW5kcm9pZC5pbnRlbnQuY2F0ZWdvcnkuREVGQVVMVCIvPgogICAgICAgICAgICAgICAgPGNhdGVnb3J5IGFuZHJvaWQ6bmFtZT0iYW5kcm9pZC5pbnRlbnQuY2F0ZWdvcnkuTEVBTkJBQ0tfTEFVTkNIRVIiLz4KICAgICAgICAgICAgPC9pbnRlbnQtZmlsdGVyPgogICAgICAgIDwvYWN0aXZpdHk+CiAgICA8L2FwcGxpY2F0aW9uPgo8L21hbmlmZXN0Pg==" | base64 -d > app/src/main/AndroidManifest.xml
       - name: Build Debug APK
         run: gradle assembleDebug
       - uses: actions/upload-artifact@v4
         with:
           name: SakugaLauncher
           path: app/build/outputs/apk/debug/*.apk
+
