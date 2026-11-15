@@ -6,6 +6,7 @@ import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
 import android.os.Bundle;
 import android.provider.Settings;
+import android.view.View;
 import android.webkit.JavascriptInterface;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
@@ -18,6 +19,7 @@ public class MainActivity extends Activity {
     protected void onCreate(Bundle b) {
         super.onCreate(b);
         WebView wv = new WebView(this);
+        wv.setLayerType(View.LAYER_TYPE_HARDWARE, null);
         WebSettings s = wv.getSettings();
         s.setJavaScriptEnabled(true);
         s.setAllowFileAccess(true);
