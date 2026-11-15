@@ -240,7 +240,7 @@
   ];
 
   let normMode = 'seq', afkMode = 'seq';
-  let vIdx = 0, isAfk = false;
+  let vIdx = 0, isAfk = false, errCount = 0;
   let afkTimer = null, modalMode = null;
 
   function playVid(name, loop) {
@@ -251,9 +251,10 @@
   }
 
   function startMode(mode, arr) {
+    errCount = 0;
     if (mode === 'seq') {
       vIdx = 0;
-      playVid(arr, false);
+      playVid(arr[0], false);
     } else if (mode === 'rnd') {
       vIdx = Math.floor(Math.random() * arr.length);
       playVid(arr[vIdx], false);
@@ -269,6 +270,9 @@
     const mode = isAfk ? afkMode : normMode;
     if (mode !== 'seq' && mode !== 'rnd') return;
 
+    errCount++;
+    if (errCount > arr.length + 1) return;
+
     if (mode === 'rnd' && arr.length > 1) {
       let next = vIdx;
       while (next === vIdx) {
@@ -278,7 +282,10 @@
     } else {
       vIdx = (vIdx + 1) % arr.length;
     }
-    playVid(arr[vIdx], false);
+    setTimeout(() => {
+      errCount = 0;
+      playVid(arr[vIdx], false);
+    }, 100);
   }
 
   function onHardwareBack() {
