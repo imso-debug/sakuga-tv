@@ -228,10 +228,8 @@
   <div class="m-grid" id="m-grid"></div>
 </div>
 <script>
-  const normList = [
-    'sakuga1.mp4', 'sakuga2.mp4', 'sakuga3.mp4'
-  ];
-  const afkList = ['afk1.mp4', 'afk2.mp4'];
+  let normList = [];
+  let afkList = [];
   const AFK_MS = 120000;
   const MONTHS = [
     'января', 'февраля', 'марта', 'апреля',
@@ -243,14 +241,30 @@
   let vIdx = 0, isAfk = false, errCount = 0;
   let afkTimer = null, modalMode = null;
 
+  function scanFolder() {
+    if (!window.AndroidLauncher ||
+        !window.AndroidLauncher.getVideos) return;
+    const all = JSON.parse(
+      window.AndroidLauncher.getVideos()
+    );
+    const n = [], a = [];
+    all.forEach(f => {
+      if (f.toLowerCase().startsWith('afk')) a.push(f);
+      else n.push(f);
+    });
+    normList = n.length ? n : all;
+    afkList = a.length ? a : normList;
+  }
+
   function playVid(name, loop) {
-    if (window.AndroidLauncher &&
+    if (name && window.AndroidLauncher &&
         window.AndroidLauncher.playVideo) {
       window.AndroidLauncher.playVideo(name, !!loop);
     }
   }
 
   function startMode(mode, arr) {
+    if (!arr || !arr.length) return;
     errCount = 0;
     if (mode === 'seq') {
       vIdx = 0;
@@ -263,15 +277,17 @@
     }
   }
 
+  scanFolder();
   startMode(normMode, normList);
 
   function onVideoEnded() {
     const arr = isAfk ? afkList : normList;
     const mode = isAfk ? afkMode : normMode;
+    if (!arr || !arr.length) return;
     if (mode !== 'seq' && mode !== 'rnd') return;
 
     errCount++;
-    if (errCount > arr.length + 1) return;
+    if (errCount > arr.length + 2) return;
 
     if (mode === 'rnd' && arr.length > 1) {
       let next = vIdx;
@@ -282,10 +298,8 @@
     } else {
       vIdx = (vIdx + 1) % arr.length;
     }
-    setTimeout(() => {
-      errCount = 0;
-      playVid(arr[vIdx], false);
-    }, 100);
+    errCount = 0;
+    playVid(arr[vIdx], false);
   }
 
   function onHardwareBack() {
@@ -297,6 +311,7 @@
     if (isAfk === st) return;
     isAfk = st;
     document.body.classList.toggle('afk', st);
+    scanFolder();
     if (st) startMode(afkMode, afkList);
     else startMode(normMode, normList);
   }
@@ -398,6 +413,7 @@
       );
       mIdx = 0;
     } else if (mode === 'vids') {
+      scanFolder();
       title.textContent = 'Настройка фонового видео';
       tabs.classList.add('show');
       vidTab = 'norm'; tabIdx = 0; mArea = 'grid';
