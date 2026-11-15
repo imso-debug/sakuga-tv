@@ -31,55 +31,42 @@ public class MainActivity extends Activity {
     @Override
     protected void onCreate(Bundle b) {
         super.onCreate(b);
-        // Запрещаем ТВ включать стандартную заставку и сон
         getWindow().addFlags(
             WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON
         );
-
         final FrameLayout root = new FrameLayout(this);
         root.setBackgroundColor(Color.BLACK);
 
         videoView = new VideoView(this);
         videoView.setFocusable(false);
         videoView.setFocusableInTouchMode(false);
-        FrameLayout.LayoutParams vp = new FrameLayout.LayoutParams(
+        root.addView(videoView, new FrameLayout.LayoutParams(
             FrameLayout.LayoutParams.MATCH_PARENT,
             FrameLayout.LayoutParams.MATCH_PARENT,
             Gravity.CENTER
-        );
-        root.addView(videoView, vp);
+        ));
 
-        videoView.setOnPreparedListener(new MediaPlayer.OnPreparedListener() {
-            @Override
-            public void onPrepared(MediaPlayer mp) {
-                mp.setVolume(0f, 0f);
-                mp.setLooping(loopSingle);
-                mp.setVideoScalingMode(
-                    MediaPlayer.VIDEO_SCALING_MODE_SCALE_TO_FIT_WITH_CROPPING
-                );
-                int vw = mp.getVideoWidth();
-                int vh = mp.getVideoHeight();
-                int sw = root.getWidth();
-                int sh = root.getHeight();
-                if (vw > 0 && vh > 0 && sw > 0 && sh > 0) {
-                    float scale = Math.max(
-                        (float) sw / vw, (float) sh / vh
-                    );
-                    ViewGroup.LayoutParams lp = videoView.getLayoutParams();
-                    lp.width = Math.round(vw * scale);
-                    lp.height = Math.round(vh * scale);
-                    videoView.setLayoutParams(lp);
-                }
-                videoView.start();
+        videoView.setOnPreparedListener(mp -> {
+            mp.setVolume(0f, 0f);
+            mp.setLooping(loopSingle);
+            mp.setVideoScalingMode(
+                MediaPlayer.VIDEO_SCALING_MODE_SCALE_TO_FIT_WITH_CROPPING
+            );
+            int vw = mp.getVideoWidth(), vh = mp.getVideoHeight();
+            int sw = root.getWidth(), sh = root.getHeight();
+            if (vw > 0 && vh > 0 && sw > 0 && sh > 0) {
+                float sc = Math.max((float) sw / vw, (float) sh / vh);
+                ViewGroup.LayoutParams lp = videoView.getLayoutParams();
+                lp.width = Math.round(vw * sc);
+                lp.height = Math.round(vh * sc);
+                videoView.setLayoutParams(lp);
             }
+            videoView.start();
         });
 
-        videoView.setOnCompletionListener(new MediaPlayer.OnCompletionListener() {
-            @Override
-            public void onCompletion(MediaPlayer mp) {
-                if (!loopSingle) {
-                    webView.evaluateJavascript("onVideoEnded();", null);
-                }
+        videoView.setOnCompletionListener(mp -> {
+            if (!loopSingle) {
+                webView.evaluateJavascript("onVideoEnded();", null);
             }
         });
 
@@ -101,39 +88,28 @@ public class MainActivity extends Activity {
     @Override
     protected void onResume() {
         super.onResume();
-        if (videoView != null && !videoView.isPlaying()) {
-            videoView.start();
-        }
-        if (webView != null) {
-            webView.requestFocus();
-        }
+        if (videoView != null && !videoView.isPlaying()) videoView.start();
+        if (webView != null) webView.requestFocus();
     }
 
     @Override
-    public boolean dispatchKeyEvent(KeyEvent event) {
-        if (event.getKeyCode() == KeyEvent.KEYCODE_BACK &&
-            event.getAction() == KeyEvent.ACTION_DOWN) {
+    public boolean dispatchKeyEvent(KeyEvent e) {
+        if (e.getKeyCode() == KeyEvent.KEYCODE_BACK &&
+            e.getAction() == KeyEvent.ACTION_DOWN) {
             webView.evaluateJavascript("onHardwareBack();", null);
             return true;
         }
-        return super.dispatchKeyEvent(event);
+        return super.dispatchKeyEvent(e);
     }
 
     public class Bridge {
         @JavascriptInterface
-        public void playVideo(final String fileName, final boolean loop) {
-            runOnUiThread(new Runnable() {
-                @Override
-                public void run() {
-                    loopSingle = loop;
-                    File f = new File("/sdcard/SakugaTV/" + fileName);
-                    if (f.exists()) {
-                        videoView.setVideoURI(Uri.fromFile(f));
-                    } else {
-                        // Если файла нет, сразу берём следующий
-                        webView.evaluateJavascript("onVideoEnded();", null);
-                    }
-                }
+        public void playVideo(String name, boolean loop) {
+            runOnUiThread(() -> {
+                loopSingle = loop;
+                File f = new File("/sdcard/SakugaTV/" + name);
+                if (f.exists()) videoView.setVideoURI(Uri.fromFile(f));
+                else webView.evaluateJavascript("onVideoEnded();", null);
             });
         }
 
@@ -151,20 +127,18 @@ public class MainActivity extends Activity {
         public String getApps() {
             JSONArray arr = new JSONArray();
             PackageManager pm = getPackageManager();
-            Intent main = new Intent(Intent.ACTION_MAIN, null);
-            main.addCategory(Intent.CATEGORY_LAUNCHER);
-            List<ResolveInfo> list = pm.queryIntentActivities(main, 0);
-            for (ResolveInfo r : list) {
+            Intent m = new Intent(Intent.ACTION_MAIN, null);
+            m.addCategory(Intent.CATEGORY_LAUNCHER);
+            for (ResolveInfo r : pm.queryIntentActivities(m, 0)) {
                 try {
                     JSONObject o = new JSONObject();
                     o.put("name", r.loadLabel(pm).toString());
                     o.put("pkg", r.activityInfo.packageName);
                     arr.put(o);
-                } catch (Exception e) {}
+                } catch (Exception ex) {}
             }
             return arr.toString();
         }
     }
 }
 
-}
