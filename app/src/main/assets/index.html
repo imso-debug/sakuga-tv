@@ -94,13 +94,31 @@
   .modal {
     position: fixed; inset: 0; z-index: 20;
     background: rgba(9,10,16,.96);
-    padding: 50px 60px; display: none;
+    padding: 45px 60px; display: none;
     flex-direction: column;
   }
   .modal.open { display: flex; }
   .m-head {
     display: flex; justify-content: space-between;
-    align-items: center; margin-bottom: 30px;
+    align-items: center; margin-bottom: 22px;
+  }
+  .tabs {
+    display: none; gap: 14px; margin-bottom: 24px;
+  }
+  .tabs.show { display: flex; }
+  .tab {
+    padding: 10px 22px; border-radius: 14px;
+    background: rgba(255,255,255,.07);
+    border: 2px solid transparent;
+    font-size: 16px; color: #ffffff99;
+  }
+  .tab.act {
+    background: rgba(122,162,247,.2);
+    color: #fff; border-color: #7aa2f780;
+  }
+  .tab.foc {
+    border-color: #bb9af7; color: #fff;
+    transform: scale(1.04);
   }
   .m-grid {
     display: grid; gap: 18px; overflow-y: auto;
@@ -171,6 +189,14 @@
       «Назад» на пульте для выхода
     </span>
   </div>
+  <div class="tabs" id="m-tabs">
+    <div class="tab act" data-tab="norm">
+      Обычный фон
+    </div>
+    <div class="tab" data-tab="afk">
+      Режим АФК (сон)
+    </div>
+  </div>
   <div class="m-grid" id="m-grid"></div>
 </div>
 <script>
@@ -180,8 +206,10 @@
   const afkList = ['afk1.mp4', 'afk2.mp4'];
   const AFK_MS = 120000;
 
-  let list = normList, vIdx = 0;
-  let loopSingle = false, isAfk = false;
+  // Настройки режимов: 'seq' (по очереди),
+  // 'rnd' (случайно), или имя файла для повтора
+  let normMode = 'seq', afkMode = 'seq';
+  let vIdx = 0, isAfk = false;
   let afkTimer = null, modalMode = null;
 
   function playVid(name, loop) {
@@ -191,17 +219,38 @@
     }
   }
 
-  // Старт первого видео
-  playVid(list[0], false);
-
-  // Вызывается из Android, когда ролик закончился
-  function onVideoEnded() {
-    if (loopSingle && !isAfk) return;
-    vIdx = (vIdx + 1) % list.length;
-    playVid(list[vIdx], false);
+  function startMode(mode, arr) {
+    if (mode === 'seq') {
+      vIdx = 0;
+      playVid(arr, false);
+    } else if (mode === 'rnd') {
+      vIdx = Math.floor(Math.random() * arr.length);
+      playVid(arr[vIdx], false);
+    } else {
+      playVid(mode, true);
+    }
   }
 
-  // Вызывается при нажатии кнопки «Назад» на пульте
+  // Старт обычного режима при запуске
+  startMode(normMode, normList);
+
+  function onVideoEnded() {
+    const arr = isAfk ? afkList : normList;
+    const mode = isAfk ? afkMode : normMode;
+    if (mode !== 'seq' && mode !== 'rnd') return;
+
+    if (mode === 'rnd' && arr.length > 1) {
+      let next = vIdx;
+      while (next === vIdx) {
+        next = Math.floor(Math.random() * arr.length);
+      }
+      vIdx = next;
+    } else {
+      vIdx = (vIdx + 1) % arr.length;
+    }
+    playVid(arr[vIdx], false);
+  }
+
   function onHardwareBack() {
     if (isAfk) { resetAfk(); return; }
     if (modalMode) { closeModal(); }
@@ -211,9 +260,8 @@
     if (isAfk === st) return;
     isAfk = st;
     document.body.classList.toggle('afk', st);
-    list = st ? afkList : normList;
-    vIdx = 0;
-    playVid(list[0], st ? false : loopSingle);
+    if (st) startMode(afkMode, afkList);
+    else startMode(normMode, normList);
   }
 
   function resetAfk() {
@@ -240,7 +288,11 @@
   const botEls = Array.from(
     document.querySelectorAll('[data-r="bot"]')
   );
+  const tabEls = Array.from(
+    document.querySelectorAll('.tab')
+  );
   let row = 'bot', tIdx = 0, bIdx = 0;
+  let mArea = 'grid', tabIdx = 0, vidTab = 'norm';
   let mEls = [], mIdx = 0;
 
   function renderFoc() {
@@ -250,42 +302,67 @@
     else botEls[bIdx].classList.add('foc');
   }
 
+  function buildVidGrid() {
+    const grid = document.getElementById('m-grid');
+    grid.innerHTML = '';
+    const arr = vidTab === 'norm' ? normList : afkList;
+    const items = [
+      {name: '🔄 По очереди', val: 'seq'},
+      {name: '🎲 Случайно', val: 'rnd'}
+    ];
+    arr.forEach(v => {
+      items.push({name: '🎬 ' + v, val: v});
+    });
+    items.forEach((it, i) => {
+      const div = document.createElement('div');
+      div.className = 'm-item';
+      div.textContent = it.name;
+      div.dataset.val = it.val;
+      grid.appendChild(div);
+    });
+    mEls = Array.from(
+      document.querySelectorAll('.m-item')
+    );
+    mIdx = 0;
+  }
+
   function openModal(mode) {
     modalMode = mode;
     clearTimeout(afkTimer);
     const grid = document.getElementById('m-grid');
     const title = document.getElementById('m-title');
+    const tabs = document.getElementById('m-tabs');
     grid.innerHTML = '';
 
-    let items = [];
     if (mode === 'apps') {
       title.textContent = 'Все приложения';
+      tabs.classList.remove('show');
+      mArea = 'grid';
+      let items = [];
       if (window.AndroidLauncher &&
           window.AndroidLauncher.getApps) {
         items = JSON.parse(
           window.AndroidLauncher.getApps()
         );
       }
-    } else if (mode === 'vids') {
-      title.textContent = 'Выбор фонового видео';
-      items = [{name: '🔄 По очереди', val: 'auto'}];
-      normList.forEach(v => {
-        items.push({name: '🎬 ' + v, val: v});
+      items.forEach((it) => {
+        const div = document.createElement('div');
+        div.className = 'm-item';
+        div.textContent = it.name;
+        div.dataset.val = it.pkg;
+        grid.appendChild(div);
       });
+      mEls = Array.from(
+        document.querySelectorAll('.m-item')
+      );
+      mIdx = 0;
+    } else if (mode === 'vids') {
+      title.textContent = 'Настройка фонового видео';
+      tabs.classList.add('show');
+      vidTab = 'norm'; tabIdx = 0; mArea = 'grid';
+      buildVidGrid();
     }
-
-    items.forEach((it, i) => {
-      const div = document.createElement('div');
-      div.className = 'm-item' + (i===0 ? ' foc' : '');
-      div.textContent = it.name;
-      div.dataset.val = it.val || it.pkg;
-      grid.appendChild(div);
-    });
-
-    mEls = Array.from(
-      document.querySelectorAll('.m-item')
-    );
-    mIdx = 0;
+    updModalFoc();
     document.getElementById('modal')
       .classList.add('open');
   }
@@ -298,10 +375,19 @@
   }
 
   function updModalFoc() {
-    mEls.forEach((el, i) => {
-      el.classList.toggle('foc', i === mIdx);
+    tabEls.forEach((t, i) => {
+      t.classList.toggle('act', t.dataset.tab === vidTab);
+      t.classList.toggle(
+        'foc', modalMode === 'vids' &&
+        mArea === 'tabs' && i === tabIdx
+      );
     });
-    if (mEls[mIdx]) {
+    mEls.forEach((el, i) => {
+      el.classList.toggle(
+        'foc', mArea === 'grid' && i === mIdx
+      );
+    });
+    if (mArea === 'grid' && mEls[mIdx]) {
       mEls[mIdx].scrollIntoView({block: 'nearest'});
     }
   }
@@ -314,33 +400,50 @@
       if (['Escape','Backspace','GoBack']
           .includes(e.key)) {
         closeModal();
-      } else if (e.key === 'ArrowRight') {
-        mIdx = (mIdx + 1) % mEls.length;
-        updModalFoc();
-      } else if (e.key === 'ArrowLeft') {
-        mIdx = (mIdx - 1 + mEls.length) % mEls.length;
-        updModalFoc();
-      } else if (e.key === 'ArrowDown') {
-        mIdx = Math.min(mEls.length - 1, mIdx + 4);
-        updModalFoc();
-      } else if (e.key === 'ArrowUp') {
-        mIdx = Math.max(0, mIdx - 4);
-        updModalFoc();
-      } else if (e.key === 'Enter' && mEls[mIdx]) {
-        const val = mEls[mIdx].dataset.val;
-        if (modalMode === 'apps') {
-          if (window.AndroidLauncher) {
-            window.AndroidLauncher.openApp(val);
-          }
-        } else if (modalMode === 'vids') {
-          if (val === 'auto') {
-            loopSingle = false;
-            playVid(normList[vIdx], false);
+      } else if (mArea === 'tabs') {
+        if (e.key === 'ArrowRight' ||
+            e.key === 'ArrowLeft') {
+          tabIdx = tabIdx === 0 ? 1 : 0;
+          vidTab = tabEls[tabIdx].dataset.tab;
+          buildVidGrid();
+          updModalFoc();
+        } else if (e.key === 'ArrowDown') {
+          mArea = 'grid';
+          updModalFoc();
+        }
+      } else {
+        if (e.key === 'ArrowRight') {
+          mIdx = (mIdx + 1) % mEls.length;
+          updModalFoc();
+        } else if (e.key === 'ArrowLeft') {
+          mIdx = (mIdx - 1 + mEls.length) % mEls.length;
+          updModalFoc();
+        } else if (e.key === 'ArrowDown') {
+          mIdx = Math.min(mEls.length - 1, mIdx + 4);
+          updModalFoc();
+        } else if (e.key === 'ArrowUp') {
+          if (mIdx < 4 && modalMode === 'vids') {
+            mArea = 'tabs';
+            updModalFoc();
           } else {
-            loopSingle = true;
-            playVid(val, true);
+            mIdx = Math.max(0, mIdx - 4);
+            updModalFoc();
           }
-          closeModal();
+        } else if (e.key === 'Enter' && mEls[mIdx]) {
+          const val = mEls[mIdx].dataset.val;
+          if (modalMode === 'apps') {
+            if (window.AndroidLauncher) {
+              window.AndroidLauncher.openApp(val);
+            }
+          } else if (modalMode === 'vids') {
+            if (vidTab === 'norm') {
+              normMode = val;
+              startMode(normMode, normList);
+            } else {
+              afkMode = val;
+            }
+            closeModal();
+          }
         }
       }
       return;
