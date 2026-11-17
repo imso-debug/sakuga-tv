@@ -132,7 +132,6 @@ public class MainActivity extends Activity {
                 loopSingle = loop;
                 File f = new File("/sdcard/SakugaTV/" + name);
                 if (f.exists()) {
-                    videoView.stopPlayback();
                     videoView.setVideoURI(Uri.fromFile(f));
                 } else {
                     webView.evaluateJavascript("onVideoEnded();", null);
