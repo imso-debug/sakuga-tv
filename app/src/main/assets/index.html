@@ -260,9 +260,9 @@
   let normMode = 'seq', afkMode = 'seq';
   let vIdx = 0, isAfk = false, errCount = 0;
   let afkTimer = null, modalMode = null;
+  let fadeTimer = null;
   const curtain = document.getElementById('fade-curtain');
 
-  // Индикатор Wi-Fi
   function updWifi() {
     const el = document.getElementById('wifi-ico');
     el.classList.toggle('off', !navigator.onLine);
@@ -289,14 +289,16 @@
   function playVid(name, loop, noFade) {
     if (!name || !window.AndroidLauncher ||
         !window.AndroidLauncher.playVideo) return;
+    clearTimeout(fadeTimer);
     if (noFade) {
+      curtain.classList.remove('on');
       window.AndroidLauncher.playVideo(name, !!loop);
       return;
     }
     curtain.classList.add('on');
-    setTimeout(() => {
+    fadeTimer = setTimeout(() => {
       window.AndroidLauncher.playVideo(name, !!loop);
-      setTimeout(() => {
+      fadeTimer = setTimeout(() => {
         curtain.classList.remove('on');
       }, 250);
     }, 400);
